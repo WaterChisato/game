@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水喝千束的工具库</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: '微软雅黑', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+            min-height: 100vh;
+            padding: 60px 20px 80px;
+        }
+
+        /* 左上角返回按钮 */
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #2c3e50;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 16px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .back-btn:hover {
+            background: #ffffff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            transform: translateX(-5px);
+        }
+
+        /* 功能按钮容器 */
+        .button-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            padding: 20px;
+        }
+
+        /* 单个功能按钮 */
+        .func-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 20px 15px;
+            background: white;
+            color: #2c3e50;
+            border: none;
+            border-radius: 15px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .func-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: 0.5s;
+        }
+
+        .func-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            color: #3498db;
+        }
+
+        .func-btn:hover::before {
+            left: 100%;
+        }
+
+        /* 图标样式（可替换为实际图标） */
+        .btn-icon {
+            width: 24px;
+            height: 24px;
+            background: #3498db;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        /* 底部版权信息 */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            padding: 15px 0;
+            background: rgba(255, 255, 255, 0.95);
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+            border-top: 1px solid #ecf0f1;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <!-- 左上角返回按钮 -->
+    <a href="https://waterchisato.github.io" class="back-btn">
+        ← 返回主页
+    </a>
+
+    <!-- 功能按钮区域 -->
+    <div class="button-container">
+        <a href="https://waterchisato.github.io/game/daodan.html" class="func-btn">
+            <span class="btn-icon">1</span>
+            技术笔记
+        </a>
+        <a href="目标链接2" class="func-btn">
+            <span class="btn-icon">2</span>
+            项目案例
+        </a>
+        <a href="目标链接3" class="func-btn">
+            <span class="btn-icon">3</span>
+            学习资源
+        </a>
+        <a href="目标链接4" class="func-btn">
+            <span class="btn-icon">4</span>
+            生活随笔
+        </a>
+        <a href="目标链接5" class="func-btn">
+            <span class="btn-icon">5</span>
+            工具推荐
+        </a>
+        <a href="目标链接6" class="func-btn">
+            <span class="btn-icon">6</span>
+            代码片段
+        </a>
+        <a href="目标链接7" class="func-btn">
+            <span class="btn-icon">7</span>
+            教程指南
+        </a>
+        <a href="目标链接8" class="func-btn">
+            <span class="btn-icon">8</span>
+            灵感记录
+        </a>
+        <a href="目标链接9" class="func-btn">
+            <span class="btn-icon">9</span>
+            关于我们
+        </a>
+        <a href="目标链接10" class="func-btn">
+            <span class="btn-icon">10</span>
+            联系方式
+        </a>
+    </div>
+
+    <!-- 底部版权信息 -->
+    <div class="footer">
+        水喝千束制作｜水喝千束的博客
+    </div>
+</body>
+</html>
