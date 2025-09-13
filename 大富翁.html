@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>增强版大富翁</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5dc;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        /* 玩家信息面板 */
+        .player-panel {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        .player-card {
+            text-align: center;
+        }
+        /* 棋盘样式（10x10网格） */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 60px); 
+            grid-template-rows: repeat(10, 60px);
+            gap: 2px;
+            margin: 20px auto;
+            width: fit-content;
+            background-color: #8b4513;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: relative;
+            cursor: pointer;
+            border: none; /* 初始无边框，有主后显示 */
+        }
+        /* 格子类型颜色 */
+        .start { background-color: gold; }
+        .chance { background-color: lightblue; }
+        .empty { background-color: lightgreen; }
+        .park { background-color: pink; }
+        .destiny { background-color: purple; }
+        .jail { background-color: gray; }
+        .hotel { background-color: brown; }
+
+        /* 玩家棋子（不同玩家不同颜色） */
+        .player-piece {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            position: absolute;
+        }
+        .player1 { background-color: red; }
+        .player2 { background-color: blue; }
+
+        /* 骰子按钮 */
+        .dice-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #dc143c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        .dice-btn:hover {
+            background-color: #a52a2a;
+        }
+
+        /* 日志区域 */
+        .log-area {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            margin-top: 20px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+        }
+        .log-entry {
+            margin: 5px 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>增强版大富翁（支持买地、进监狱）</h1>
+        
+        <!-- 玩家信息面板（动态生成） -->
+        <div class="player-panel" id="player-panel"></div>
+        
+        <!-- 棋盘（动态生成） -->
+        <div class="board" id="board"></div>
+        
+        <!-- 骰子按钮 -->
+        <button class="dice-btn" id="dice-btn">掷骰子</button>
+        
+        <!-- 日志区域（记录游戏过程） -->
+        <div class="log-area" id="log-area"></div>
+    </div>
+
+    <script>
+        // ========== 游戏核心配置 ==========
+        const config = {
+            playerCount: 4,   // 玩家数量（2-4人，可自行修改）
+            boardSize: 10,    // 棋盘大小（10x10 格子）
+            initMoney: 1000,  // 玩家初始资金
+            initLand: 0       // 玩家初始土地数量
+        };
+
+        // ========== 数据模型 ==========
+        // 玩家数据：id、资金、位置、土地数、棋子颜色、监狱状态
+        let players = [];
+        // 棋盘格子数据：类型、名称、描述、归属、价格、是否建造旅馆
+        const boardCells = [];
+
+        // 初始化棋盘格子（10x10 循环分配类型）
+        const cellTypes = ['start', 'chance', 'empty', 'park', 'destiny', 'jail', 'hotel'];
+        for (let i = 0; i < config.boardSize * config.boardSize; i++) {
+            const type = cellTypes[i % cellTypes.length]; // 循环分配格子类型
+            let name, desc, price = 0, building = false, owner = 0; // owner=0表示无主
+
+            // 根据类型设置属性
+            switch (type) {
+                case 'start': 
+                    name = '起点'; 
+                    desc = '回到起点，获得100元补贴'; 
+                    break;
+                case 'chance': 
+                    name = '机会'; 
+                    desc = '抽取机会卡，随机奖励/惩罚'; 
+                    break;
+                case 'empty': 
+                    name = '空地'; 
+                    desc = '可购买（花费200元）'; 
+                    price = 200;
+                    break;
+                case 'park': 
+                    name = '公园'; 
+                    desc = '放松一下，心情变好~'; 
+                    break;
+                case 'destiny': 
+                    name = '命运'; 
+                    desc = '抽取命运卡，随机支付/获得金币'; 
+                    break;
+                case 'jail': 
+                    name = '监狱'; 
+                    desc = '停留3回合（掷骰子出双数可提前离开）'; 
+                    break;
+                case 'hotel': 
+                    name = '旅馆'; 
+                    desc = '若无主可停留，若有主则支付高额租金'; 
+                    break;
+            }
+
+            boardCells.push({ 
+                type, 
+                name, 
+                desc, 
+                owner, 
+                price, 
+                building 
+            });
+        }
+
+        // 初始化玩家数据
+        for (let i = 0; i < config.playerCount; i++) {
+            players.push({
+                id: i + 1,
+                money: config.initMoney,
+                position: 0, // 初始位置：起点（索引0）
+                land: config.initLand,
+                color: ['red', 'blue'][i], // 玩家棋子颜色
+                inJail: false, // 是否在监狱
+                jailTurns: 0   // 监狱剩余回合数
+            });
+        }
+
+        // ========== DOM 元素引用 ==========
+        const playerPanelEl = document.getElementById('player-panel');
+        const boardEl = document.getElementById('board');
+        const diceBtnEl = document.getElementById('dice-btn');
+        const logAreaEl = document.getElementById('log-area');
+
+        // ========== 页面初始化 ==========
+        function initPage() {
+            renderPlayerPanel(); // 渲染玩家信息
+            renderBoard();       // 渲染棋盘
+            addLog(`游戏开始！共${config.playerCount}名玩家，初始资金${config.initMoney}元。`);
+        }
+
+        // ========== 渲染函数 ==========
+        // 渲染玩家信息面板
+        function renderPlayerPanel() {
+            playerPanelEl.innerHTML = '';
+            players.forEach(player => {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.innerHTML = `
+                    <p>玩家${player.id}</p>
+                    <p>资金: ${player.money} 元</p>
+                    <p>土地: ${player.land} 块</p>
+                    <p>当前位置: 第${player.position + 1}格</p>
+                    <p>监狱状态: ${player.inJail ? `剩余${player.jailTurns}回合` : '自由'}</p>
+                `;
+                playerPanelEl.appendChild(card);
+            });
+        }
+
+        // 渲染棋盘格子与玩家棋子
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            boardCells.forEach((cell, index) => {
+                const cellEl = document.createElement('div');
+                cellEl.className = `cell ${cell.type}`;
+                cellEl.textContent = cell.name;
+
+                // 显示土地归属（边框颜色对应玩家）
+                if (cell.owner > 0) {
+                    const owner = players.find(p => p.id === cell.owner);
+                    if (owner) {
+                        cellEl.style.border = `3px solid ${owner.color}`;
+                    }
+                } else {
+                    cellEl.style.border = 'none';
+                }
+
+                // 显示玩家棋子
+                players.forEach(player => {
+                    if (player.position === index) {
+                        const piece = document.createElement('div');
+                        piece.className = `player-piece player${player.id}`;
+                        cellEl.appendChild(piece);
+                    }
+                });
+                boardEl.appendChild(cellEl);
+            });
+        }
+
+        // ========== 游戏逻辑 ==========
+        // 掷骰子并触发移动/事件
+        function rollDice() {
+            const currentPlayer = players[currentPlayerIndex];
+            
+            // 监狱状态：无法主动掷骰子，需处理监狱逻辑
+            if (currentPlayer.inJail) {
+                handleJailRoll();
+                return;
+            }
+
+            // 正常掷骰子（1-6点）
+            const diceNum = Math.floor(Math.random() * 6) + 1; 
+            let newPosition = (currentPlayer.position + diceNum) % (config.boardSize * config.boardSize);
+            
+            // 起点补贴
+            if (newPosition === 0) {
+                currentPlayer.money += 100;
+                addLog(`玩家${currentPlayer.id}回到起点，获得100元补贴！当前资金：${currentPlayer.money}元`);
+            } else {
+                addLog(`玩家${currentPlayer.id}掷出${diceNum}点 → 从第${currentPlayer.position + 1}格 移动到 第${newPosition + 1}格`);
+            }
+
+            // 移动并处理格子事件
+            handleMove(newPosition);
+            
+            // 切换到下一个玩家
+            currentPlayerIndex = (currentPlayerIndex + 1) % config.playerCount;
+            
+            // 更新UI
+            renderPlayerPanel();
+            renderBoard();
+        }
+
+        // 处理“监狱中掷骰子”的逻辑
+        function handleJailRoll() {
+            const currentPlayer = players[currentPlayerIndex];
+            const dice1 = Math.floor(Math.random() * 6) + 1;
+            const dice2 = Math.floor(Math.random() * 6) + 1;
+            addLog(`玩家${currentPlayer.id}在监狱中掷骰子：${dice1} + ${dice2} = ${dice1+dice2}`);
+
+            // 掷出双数 → 提前出狱
+            if (dice1 === dice2) {
+                currentPlayer.inJail = false;
+                currentPlayer.jailTurns = 0;
+                addLog(`玩家${currentPlayer.id}掷出双数，提前出狱！`);
+                
+                // 出狱后移动骰子步数
+                let newPosition = (currentPlayer.position + dice1 + dice2) % (config.boardSize * config.boardSize);
+                handleMove(newPosition);
+            } else {
+                // 未出狱 → 剩余回合减1
+                currentPlayer.jailTurns -= 1;
+                addLog(`玩家${currentPlayer.id}未掷出双数，继续停留${currentPlayer.jailTurns}回合`);
+                
+                // 回合结束 → 释放
+                if (currentPlayer.jailTurns <= 0) {
+                    currentPlayer.inJail = false;
+                    currentPlayer.jailTurns = 0;
+                    addLog(`玩家${currentPlayer.id}监狱回合结束，重获自由！`);
+                }
+            }
+
+            renderPlayerPanel();
+        }
+
+        // 移动到新位置并触发格子事件
+        function handleMove(newPosition) {
+            const currentPlayer = players[currentPlayerIndex];
+            currentPlayer.position = newPosition;
+            const cell = boardCells[newPosition];
+            handleCellEvent(cell.type, newPosition);
+        }
+
+        // 处理“土地购买、租金、监狱、机会卡”等格子事件
+        function handleCellEvent(type, position) {
+            const currentPlayer = players[currentPlayerIndex];
+            switch (type) {
+                case 'start':
+                    // 起点：直接领补贴（已在 move 中处理）
+                    break;
+                case 'chance':
+                    // 机会卡：随机奖励/惩罚
+                    if (Math.random() > 0.5) {
+                        currentPlayer.money += 50;
+                        addLog(`玩家${currentPlayer.id}触发【机会卡】→ 获得50元奖励！`);
+                    } else {
+                        currentPlayer.money -= 30;
+                        addLog(`玩家${currentPlayer.id}触发【机会卡】→ 支付30元惩罚！`);
+                    }
+                    break;
+                case 'empty':
+                case 'park':
+                    // 空地/公园：购买或支付租金
+                    handleLandEvent(type, position);
+                    break;
+                case 'destiny':
+                    // 命运卡：随机支付/获得
+                    if (Math.random() > 0.5) {
+                        currentPlayer.money -= 30;
+                        addLog(`玩家${currentPlayer.id}触发【命运卡】→ 支付30元 → 剩余${currentPlayer.money}元`);
+                    } else {
+                        currentPlayer.money += 50;
+                        addLog(`玩家${currentPlayer.id}触发【命运卡】→ 获得50元 → 现有${currentPlayer.money}元`);
+                    }
+                    break;
+                case 'jail':
+                    // 监狱：进入或停留
+                    handleJailEntry();
+                    break;
+                case 'hotel':
+                    // 旅馆：租金（若自己建造则无租金，否则支付双倍）
+                    handleHotelEvent(position);
+                    break;
+            }
+        }
+
+        // 处理“土地购买/租金”事件（空地、公园）
+        function handleLandEvent(type, position) {
+            const currentPlayer = players[currentPlayerIndex];
+            const cell = boardCells[position];
+
+            // 格子无主 → 尝试购买
+            if (cell.owner === 0) {
+                if (currentPlayer.money >= cell.price) {
+                    currentPlayer.money -= cell.price;
+                    cell.owner = currentPlayer.id;
+                    currentPlayer.land += 1;
+                    addLog(`玩家${currentPlayer.id}购买了【${cell.name}】，花费${cell.price}元 → 剩余${currentPlayer.money}元，拥有土地${currentPlayer.land}块`);
+                } else {
+                    addLog(`玩家${currentPlayer.id}想买【${cell.name}】，但资金不足（需${cell.price}元，当前${currentPlayer.money}元）`);
+                }
+            } 
+            // 格子有主 → 支付租金
+            else {
+                const owner = players.find(p => p.id === cell.owner);
+                if (owner) {
+                    // 旅馆特殊逻辑：建造后租金翻倍
+                    const rent = cell.building ? 100 : 50;
+                    currentPlayer.money -= rent;
+                    owner.money += rent;
+                    addLog(`玩家${currentPlayer.id}停在【${cell.name}】（主人：玩家${cell.owner}）→ 支付租金${rent}元 → 自己剩${currentPlayer.money}元，对方现${owner.money}元`);
+                }
+            }
+        }
+
+        // 处理“监狱进入/停留”事件
+        function handleJailEntry() {
+            const currentPlayer = players[currentPlayerIndex];
+            if (!currentPlayer.inJail) {
+                // 首次进入监狱
+                currentPlayer.inJail = true;
+                currentPlayer.jailTurns = 3;
+                currentPlayer.position = position; // 锁定在监狱位置
+                addLog(`玩家${currentPlayer.id}进入监狱，需停留3回合（掷骰子出双数可提前离开）`);
+            } else {
+                // 已在监狱 → 减少回合数
+                currentPlayer.jailTurns -= 1;
+                if (currentPlayer.jailTurns <= 0) {
+                    currentPlayer.inJail = false;
+                    currentPlayer.jailTurns = 0;
+                    addLog(`玩家${currentPlayer.id}监狱回合结束，重获自由！`);
+                } else {
+                    addLog(`玩家${currentPlayer.id}仍在监狱中，剩余${currentPlayer.jailTurns}回合`);
+                }
+            }
+        }
+
+        // 处理“旅馆”事件（租金/建造）
+        function handleHotelEvent(position) {
+            const currentPlayer = players[currentPlayerIndex];
+            const cell = boardCells[position];
+
+            // 若旅馆无主 → 简化为“停留付费”（可扩展建造逻辑）
+            if (cell.owner === 0) {
+                addLog(`玩家${currentPlayer.id}到达【旅馆】，可选择未来建造（需花费100元，暂未开放）`);
+            } 
+            // 若旅馆有主 → 支付高额租金
+            else {
+                const owner = players.find(p => p.id === cell.owner);
+                if (owner) {
+                    const rent = 100; // 建造后租金翻倍
+                    currentPlayer.money -= rent;
+                    owner.money += rent;
+                    addLog(`玩家${currentPlayer.id}停在【旅馆】（主人：玩家${cell.owner}）→ 支付高额租金${rent}元 → 自己剩${currentPlayer.money}元，对方现${owner.money}元`);
+                }
+            }
+        }
+
+        // 日志系统：记录游戏过程
+        function addLog(message) {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logAreaEl.appendChild(logEntry);
+            logAreaEl.scrollTop = logAreaEl.scrollHeight; // 自动滚动到底部
+        }
+
+        // ========== 事件绑定 ==========
+        diceBtnEl.addEventListener('click', rollDice);
+
+        // ========== 初始化游戏 ==========
+        let currentPlayerIndex = 0; // 当前玩家索引（轮流）
+        initPage();
+    </script>
+</body>
+</html>
